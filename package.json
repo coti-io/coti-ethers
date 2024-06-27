@@ -1,0 +1,13 @@
+{
+  "name": "coti-ethers",
+  "version": "0.0.1",
+  "description": "A Web3 library for interacting with the COTI V2 blockchain.",
+  "main": "index.js",
+  "repository": "https://github.com/coti-io/coti-ethers.git",
+  "author": "Spencer Miller <spencer@coti.io>",
+  "license": "Apache 2.0",
+  "devDependencies": {
+    "ethers": "^6.13.1",
+    "typescript": "^5.5.2"
+  }
+}
