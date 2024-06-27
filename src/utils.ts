@@ -1,21 +1,22 @@
 import { Contract, keccak256 } from "ethers";
 import IAccountOnboard from "../abi/IAccountOnboard.json"
-import { DEVNET_ONBOARD_CONTRACT_ADDRESS } from "./constants";
 import { decryptRSA, generateRSAKeyPair, sign } from "./crypto";
+import { Wallet } from "./wallet";
 
 export function getDefaultAccountOnboardContract(contractAddress: string) {
     return new Contract(contractAddress, IAccountOnboard)
 }
 
-export async function defaultOnboard(defaultOnboardContractAddress: string, privateKey: string) {
-    const accountOnboardContract = getDefaultAccountOnboardContract(defaultOnboardContractAddress)
+export async function defaultOnboard(defaultOnboardContractAddress: string, wallet: Wallet) {
+    const accountOnboardContract: any = getDefaultAccountOnboardContract(defaultOnboardContractAddress)
 
     const rsaKeyPair = generateRSAKeyPair()
 
-    const signedEK = sign(keccak256(rsaKeyPair.publicKey), privateKey)
+    const signedEK = sign(keccak256(rsaKeyPair.publicKey), wallet.privateKey)
 
     const receipt = await (
         await accountOnboardContract
+            .connect(wallet)
             .OnboardAccount(
                 rsaKeyPair.publicKey,
                 signedEK,

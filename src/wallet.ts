@@ -18,7 +18,7 @@ export class Wallet extends BaseWallet {
     }
 
     async defaultOnboard(defaultOnboardContractAddress = DEVNET_ONBOARD_CONTRACT_ADDRESS) {
-        defaultOnboardProcedure(defaultOnboardContractAddress, this.privateKey)
+        defaultOnboardProcedure(defaultOnboardContractAddress, this)
     }
 
     async encryptValue(plaintextValue: bigint | number | string, contractAddress: string, functionSelector: string) {
