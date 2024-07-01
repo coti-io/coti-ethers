@@ -1,6 +1,6 @@
 import { Contract, keccak256 } from "ethers";
 import IAccountOnboard from "../abi/IAccountOnboard.json"
-import { decryptRSA, generateRSAKeyPair, sign } from "./crypto";
+import { decryptRSA, generateRSAKeyPair, sign } from "@coti-io/coti-sdk-typescript";
 import { Wallet } from "./wallet";
 
 export function getDefaultAccountOnboardContract(contractAddress: string) {

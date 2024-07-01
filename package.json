@@ -7,6 +7,7 @@
   "author": "Spencer Miller <spencer@coti.io>",
   "license": "Apache 2.0",
   "devDependencies": {
+    "@coti-io/coti-sdk-typescript": "https://github.com/coti-io/coti-sdk-typescript.git",
     "dotenv": "^16.4.5",
     "ethers": "^6.13.1",
     "ts-node": "^10.9.2",

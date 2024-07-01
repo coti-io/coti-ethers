@@ -5,7 +5,7 @@ import {
 } from 'ethers'
 import { DEVNET_ONBOARD_CONTRACT_ADDRESS } from './constants'
 import { defaultOnboard as defaultOnboardProcedure } from './utils'
-import { decryptString, decryptUint, prepareStringIT, prepareUintIT } from './crypto'
+import { decryptString, decryptUint, prepareStringIT, prepareUintIT } from '@coti-io/coti-sdk-typescript'
 
 export class Wallet extends BaseWallet {
 
