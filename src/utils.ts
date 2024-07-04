@@ -14,15 +14,15 @@ export async function defaultOnboard(defaultOnboardContractAddress: string, wall
 
     const signedEK = sign(keccak256(rsaKeyPair.publicKey), wallet.privateKey)
 
-    const receipt = await (
-        await accountOnboardContract
-            .connect(wallet)
-            .OnboardAccount(
-                rsaKeyPair.publicKey,
-                signedEK,
-                { gasLimit: 12000000 }
-            )
-        ).wait()
+    const tx = await accountOnboardContract
+        .connect(wallet)
+        .OnboardAccount(
+            rsaKeyPair.publicKey,
+            signedEK,
+            { gasLimit: 12000000 }
+        )
+    
+    const receipt = await tx.wait()
 
     if (!receipt || !receipt.logs || !receipt.logs[0]) {
         throw new Error("failed to onboard account")
@@ -38,5 +38,5 @@ export async function defaultOnboard(defaultOnboardContractAddress: string, wall
 
     const buf = Buffer.from(encryptedKey.substring(2), "hex")
 
-    return decryptRSA(rsaKeyPair.privateKey, buf).toString("hex")
+    return decryptRSA(rsaKeyPair.privateKey, buf)
 }

@@ -7,9 +7,11 @@
   resolved "https://registry.yarnpkg.com/@adraffy/ens-normalize/-/ens-normalize-1.10.1.tgz#63430d04bd8c5e74f8d7d049338f1cd9d4f02069"
   integrity sha512-96Z2IP3mYmF1Xg2cDm8f1gWGf/HUVedQ3FMifV4kG/PQ4yEP51xDtRAEfhVNt5f/uzpNkZHwWQuUcu6D6K+Ekw==
 
-"@coti-io/coti-sdk-typescript@https://github.com/coti-io/coti-sdk-typescript.git":
+"@coti-io/coti-sdk-typescript@https://github.com/coti-io/coti-sdk-typescript.git#9a6105ce80d3acaaa551015e4d3c57cf0bf6ac9a":
   version "0.0.1"
-  resolved "https://github.com/coti-io/coti-sdk-typescript.git#43c66ad9dea214e793856e4904d07d5621df571e"
+  resolved "https://github.com/coti-io/coti-sdk-typescript.git#9a6105ce80d3acaaa551015e4d3c57cf0bf6ac9a"
+  dependencies:
+    node-forge "^1.3.1"
 
 "@cspotcode/source-map-support@^0.8.0":
   version "0.8.1"
@@ -127,6 +129,11 @@ make-error@^1.1.1:
   version "1.3.6"
   resolved "https://registry.yarnpkg.com/make-error/-/make-error-1.3.6.tgz#2eb2e37ea9b67c4891f684a1394799af484cf7a2"
   integrity sha512-s8UhlNe7vPKomQhC1qFelMokr/Sc3AgNbso3n74mVPA5LTZwkB9NlXf4XPamLxJE8h0gh73rM94xvwRT2CVInw==
+
+node-forge@^1.3.1:
+  version "1.3.1"
+  resolved "https://registry.yarnpkg.com/node-forge/-/node-forge-1.3.1.tgz#be8da2af243b2417d5f646a770663a92b7e9ded3"
+  integrity sha512-dPEtOeMvF9VMcYV/1Wb8CPoVAXtp6MKMlcbAt4ddqmGqUJ6fQZFXkNZNkNlfevtNkGtaSoXf/vNNNSvgrdXwtA==
 
 ts-node@^10.9.2:
   version "10.9.2"
