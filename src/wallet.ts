@@ -18,7 +18,9 @@ export class Wallet extends BaseWallet {
     }
 
     async defaultOnboard(defaultOnboardContractAddress = DEVNET_ONBOARD_CONTRACT_ADDRESS) {
-        defaultOnboardProcedure(defaultOnboardContractAddress, this)
+        const user_key = await defaultOnboardProcedure(defaultOnboardContractAddress, this)
+        
+        this.userKey = user_key
     }
 
     async encryptValue(plaintextValue: bigint | number | string, contractAddress: string, functionSelector: string) {

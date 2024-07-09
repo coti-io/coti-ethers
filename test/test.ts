@@ -13,6 +13,8 @@ async function test() {
     const wallet = new coti_ethers.Wallet(privateKey, userKey, provider)
 
     await wallet.defaultOnboard()
+
+    console.log(wallet.userKey)
 }
 
 test()

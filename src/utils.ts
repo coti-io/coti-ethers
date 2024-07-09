@@ -12,7 +12,13 @@ export async function defaultOnboard(defaultOnboardContractAddress: string, wall
 
     const rsaKeyPair = generateRSAKeyPair()
 
-    const signedEK = sign(keccak256(rsaKeyPair.publicKey), wallet.privateKey)
+    const prefix = Buffer.from("\x19Ethereum Signed Message:\n")
+    const messageLength = Buffer.from(rsaKeyPair.publicKey.length.toString())
+    const message = rsaKeyPair.publicKey
+
+    // sign using EIP-191 format
+    const signedEK = sign(keccak256(Buffer.concat([prefix, messageLength, message])), wallet.privateKey)
+    signedEK[signedEK.length - 1] = 27
 
     const tx = await accountOnboardContract
         .connect(wallet)
@@ -40,3 +46,9 @@ export async function defaultOnboard(defaultOnboardContractAddress: string, wall
 
     return decryptRSA(rsaKeyPair.privateKey, buf)
 }
+
+// TypeScript SDK
+// 0x00c9a235d20f4e017c71052f382816a21448abc2bd3ff2fe68912767b1153ee0064220bcd7ddfac0f3623b3b36260a808157bfab99ded0ee727c0793fc107b0500
+
+// Remix Plugin
+// 0x5e160f8484d913c4103737c6e8756b3f3a86b7a46a8efb4a8d36bc939c6f88853f8d5fddfe4afa8b94aa45c0a449e014a7dcd5bb097cc58b9dc74185ec6f54f11c

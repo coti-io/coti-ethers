@@ -7,9 +7,9 @@
   resolved "https://registry.yarnpkg.com/@adraffy/ens-normalize/-/ens-normalize-1.10.1.tgz#63430d04bd8c5e74f8d7d049338f1cd9d4f02069"
   integrity sha512-96Z2IP3mYmF1Xg2cDm8f1gWGf/HUVedQ3FMifV4kG/PQ4yEP51xDtRAEfhVNt5f/uzpNkZHwWQuUcu6D6K+Ekw==
 
-"@coti-io/coti-sdk-typescript@https://github.com/coti-io/coti-sdk-typescript.git#9a6105ce80d3acaaa551015e4d3c57cf0bf6ac9a":
+"@coti-io/coti-sdk-typescript@https://github.com/coti-io/coti-sdk-typescript.git#6f5424caf6e8aaaa47b56fdca48c161744365dc1":
   version "0.0.1"
-  resolved "https://github.com/coti-io/coti-sdk-typescript.git#9a6105ce80d3acaaa551015e4d3c57cf0bf6ac9a"
+  resolved "https://github.com/coti-io/coti-sdk-typescript.git#6f5424caf6e8aaaa47b56fdca48c161744365dc1"
   dependencies:
     node-forge "^1.3.1"
 
