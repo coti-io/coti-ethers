@@ -1,6 +1,7 @@
 export * from 'ethers'
-
 export * from './constants'
 export * from './utils'
-
-export { Wallet } from './wallet'
+export {Wallet} from './Wallet'
+export {BrowserProvider} from './BrowserProvider'
+export * from './types'
+export * from '@coti-io/coti-sdk-typescript'

@@ -1,20 +1,32 @@
 {
-  "name": "coti-ethers",
+  "name": "@coti-io/coti-ethers",
   "version": "0.0.1",
+  "license": "Apache 2.0",
   "description": "A Web3 library for interacting with the COTI V2 blockchain.",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "/dist"
+  ],
   "repository": "https://github.com/coti-io/coti-ethers.git",
   "author": "Spencer Miller <spencer@coti.io>",
-  "license": "Apache 2.0",
   "devDependencies": {
-    "@coti-io/coti-sdk-typescript": "https://github.com/coti-io/coti-sdk-typescript.git#6f5424caf6e8aaaa47b56fdca48c161744365dc1",
+    "@types/chai": "^4.2.0",
+    "@types/mocha": ">=9.1.0",
+    "chai": "^4.2.0",
     "dotenv": "^16.4.5",
-    "ethers": "^6.13.1",
+    "mocha": "^10.7.3",
     "ts-node": "^10.9.2",
-    "typescript": "^5.5.2"
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "ethers": "^6.13.1",
+    "@coti-io/coti-sdk-typescript": "git+https://github.com/coti-io/coti-sdk-typescript.git#c8990bd960d0291243d72646ecea43c14300339d"
   },
   "scripts": {
     "build": "tsc",
-    "test": "ts-node test/test.ts"
+    "prepare": "tsc",
+    "test": "ts-node test/test.ts",
+    "testWallet": "yarn test ./test/testNew.ts"
   }
 }
