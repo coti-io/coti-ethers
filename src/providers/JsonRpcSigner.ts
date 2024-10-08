@@ -1,7 +1,7 @@
 import {ctString, ctUint, decodeUint, decryptString, decryptUint, encodeKey, encodeUint, encrypt, itString, itUint} from "@coti-io/coti-sdk-typescript";
 import {JsonRpcSigner as BaseJsonRpcSigner, JsonRpcApiProvider, solidityPacked} from "ethers"
 import {CotiNetwork, OnboardInfo, RsaKeyPair} from "../types";
-import {DEVNET_ONBOARD_CONTRACT_ADDRESS} from "../ utils/constants";
+import {TESTNET_ONBOARD_CONTRACT_ADDRESS} from "../ utils/constants";
 import {getAccountBalance, getDefaultProvider, onboard, recoverAesFromTx} from "../ utils";
 
 const EIGHT_BYTES = 8
@@ -205,14 +205,14 @@ export class JsonRpcSigner extends BaseJsonRpcSigner {
         return decryptString(ciphertext, this._userOnboardInfo.aesKey)
     }
 
-    async generateOrRecoverAes(onboardContractAddress: string = DEVNET_ONBOARD_CONTRACT_ADDRESS) {
+    async generateOrRecoverAes(onboardContractAddress: string = TESTNET_ONBOARD_CONTRACT_ADDRESS) {
         if (this._userOnboardInfo?.aesKey)
             return
         else if (this._userOnboardInfo && this._userOnboardInfo.rsaKey && this._userOnboardInfo.txHash)
             this.setAesKey(await recoverAesFromTx(this._userOnboardInfo.txHash, this._userOnboardInfo.rsaKey,
                 onboardContractAddress, this.provider))
         else {
-            const accountBalance = await getAccountBalance(this.address, this.provider || getDefaultProvider(CotiNetwork.Devnet))
+            const accountBalance = await getAccountBalance(this.address, this.provider || getDefaultProvider(CotiNetwork.Testnet))
             if (accountBalance > BigInt(0))
                 this.setUserOnboardInfo(await onboard(onboardContractAddress, this))
             else

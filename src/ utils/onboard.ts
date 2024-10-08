@@ -1,6 +1,6 @@
 import { Contract, ContractRunner, keccak256, Provider } from "ethers"
 import { getDefaultProvider } from "./network"
-import { decryptRSA, generateRSAKeyPair, sign } from "@coti-io/coti-sdk-typescript"
+import { decryptRSA, generateRSAKeyPair, recoverUserKey, sign } from "@coti-io/coti-sdk-typescript"
 import { CotiNetwork, RsaKeyPair } from "../types"
 import { ONBOARD_CONTRACT_ABI } from "./constants"
 import { Wallet } from "../wallet/Wallet"
@@ -32,10 +32,12 @@ export async function onboard(defaultOnboardContractAddress: string, signer: Wal
         if (!decodedLog) {
             throw new Error("failed to onboard account")
         }
-        const encryptedKey = decodedLog.args.userKey
+        
+        const userKey1 = decodedLog.args.userKey1.substring(2);
+        const userKey2 = decodedLog.args.userKey2.substring(2);
         
         return {
-            aesKey: decryptRSA(privateKey, encryptedKey.substring(2)),
+            aesKey: recoverUserKey(privateKey, userKey1, userKey2),
             rsaKey: {publicKey: publicKey, privateKey: privateKey},
             txHash: receipt.hash
         }
@@ -53,7 +55,7 @@ export async function recoverAesFromTx(txHash: string,
     try {
         const receipt = provider
             ? await provider.getTransactionReceipt(txHash)
-            : await getDefaultProvider(CotiNetwork.Devnet).getTransactionReceipt(txHash)
+            : await getDefaultProvider(CotiNetwork.Testnet).getTransactionReceipt(txHash)
 
         if (!receipt || !receipt.logs || !receipt.logs[0]) {
             console.error("failed to get onboard tx info")

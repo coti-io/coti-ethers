@@ -1,5 +1,5 @@
 import {Wallet as etherWallet} from "ethers"
-import {CotiNetwork, DEVNET_ONBOARD_CONTRACT_ADDRESS, getAccountOnboardContract, getDefaultProvider, Wallet} from '../src'
+import {CotiNetwork, TESTNET_ONBOARD_CONTRACT_ADDRESS, getAccountOnboardContract, getDefaultProvider, Wallet} from '../src'
 import {expect} from "chai"
 import dotenv from "dotenv"
 
@@ -11,7 +11,7 @@ describe("Wallet tests", function () {
     let wallet: Wallet
 
     it('Should successfully create wallet without aes key', function () {
-        const provider = getDefaultProvider(CotiNetwork.Devnet)
+        const provider = getDefaultProvider(CotiNetwork.Testnet)
         wallet = new Wallet(pk, provider);
         expect(wallet.address).to.equal(new etherWallet(pk).address);
         expect(wallet.getUserOnboardInfo()).to.be.undefined
@@ -25,8 +25,8 @@ describe("Wallet tests", function () {
 
     it('Should successfully encrypt and decrypt', async function () {
         const msg = "hello world"
-        const accountOnboardContract: any = getAccountOnboardContract(DEVNET_ONBOARD_CONTRACT_ADDRESS, wallet)
-        const inputText = await wallet.encryptValue(msg, DEVNET_ONBOARD_CONTRACT_ADDRESS, accountOnboardContract.interface.fragments[1].selector);
+        const accountOnboardContract: any = getAccountOnboardContract(TESTNET_ONBOARD_CONTRACT_ADDRESS, wallet)
+        const inputText = await wallet.encryptValue(msg, TESTNET_ONBOARD_CONTRACT_ADDRESS, accountOnboardContract.interface.fragments[1].selector);
         let pt = await wallet.decryptValue(inputText.ciphertext);
         expect(pt).to.equal(msg)
 
@@ -35,13 +35,13 @@ describe("Wallet tests", function () {
     it('Should fail to encrypt when autoOnboard flag off', async function () {
         const wallet = new Wallet(pk);
         wallet.disableAutoOnboard();
-        const accountOnboardContract: any = getAccountOnboardContract(DEVNET_ONBOARD_CONTRACT_ADDRESS, wallet);
+        const accountOnboardContract: any = getAccountOnboardContract(TESTNET_ONBOARD_CONTRACT_ADDRESS, wallet);
         let ct;
         let errorThrown = false;
         try {
             ct = await wallet.encryptValue(
                 "on board",
-                DEVNET_ONBOARD_CONTRACT_ADDRESS,
+                TESTNET_ONBOARD_CONTRACT_ADDRESS,
                 accountOnboardContract.interface.fragments[1].selector
             );
         } catch (error) {
@@ -53,7 +53,7 @@ describe("Wallet tests", function () {
     });
 
     it('Should recover aes key from tx hash and rsa key', async function () {
-        const provider = getDefaultProvider(CotiNetwork.Devnet)
+        const provider = getDefaultProvider(CotiNetwork.Testnet)
         const wallet = new Wallet(pk, provider);
         await wallet.generateOrRecoverAes()
         const onBoardInfo = {

@@ -11,7 +11,7 @@ import {
     itUint
 } from "@coti-io/coti-sdk-typescript";
 import {getAccountBalance, getDefaultProvider, onboard, recoverAesFromTx} from "../ utils";
-import {DEVNET_ONBOARD_CONTRACT_ADDRESS} from "../ utils/constants";
+import {TESTNET_ONBOARD_CONTRACT_ADDRESS} from "../ utils/constants";
 
 
 export class Wallet extends BaseWallet {
@@ -128,14 +128,14 @@ export class Wallet extends BaseWallet {
         this._userOnboardInfo = undefined
     }
 
-    async generateOrRecoverAes(onboardContractAddress: string = DEVNET_ONBOARD_CONTRACT_ADDRESS) {
+    async generateOrRecoverAes(onboardContractAddress: string = TESTNET_ONBOARD_CONTRACT_ADDRESS) {
         if (this._userOnboardInfo?.aesKey)
             return
         else if (this._userOnboardInfo && this._userOnboardInfo.rsaKey && this._userOnboardInfo.txHash)
             this.setAesKey(await recoverAesFromTx(this._userOnboardInfo.txHash, this._userOnboardInfo.rsaKey,
                 onboardContractAddress, this.provider))
         else {
-            const accountBalance = await getAccountBalance(this.address, this.provider || getDefaultProvider(CotiNetwork.Devnet))
+            const accountBalance = await getAccountBalance(this.address, this.provider || getDefaultProvider(CotiNetwork.Testnet))
             if (accountBalance > BigInt(0))
                 this.setUserOnboardInfo(await onboard(onboardContractAddress, this))
             else
