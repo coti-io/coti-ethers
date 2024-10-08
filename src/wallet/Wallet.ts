@@ -1,25 +1,27 @@
 import {Provider, SigningKey, Wallet as BaseWallet} from "ethers";
-import {OnboardInfo, RsaKeyPair} from "./types";
+import {CotiNetwork, OnboardInfo, RsaKeyPair} from "../types";
 import {
     buildInputText,
     buildStringInputText,
+    ctString,
+    ctUint,
     decryptString,
     decryptUint,
-    getAccountBalance,
-    initEtherProvider
+    itString,
+    itUint
 } from "@coti-io/coti-sdk-typescript";
-import {onboard, recoverAesFromTx} from "./utils";
-import {DEVNET_ONBOARD_CONTRACT_ADDRESS} from "./constants";
+import {getAccountBalance, getDefaultProvider, onboard, recoverAesFromTx} from "../ utils";
+import {DEVNET_ONBOARD_CONTRACT_ADDRESS} from "../ utils/constants";
 
 
 export class Wallet extends BaseWallet {
     private _autoOnboard: boolean = true;
-    private _userOnboardInfo: OnboardInfo | null = null;
+    private _userOnboardInfo?: OnboardInfo;
 
     constructor(
-        privateKey: string | SigningKey = BaseWallet.createRandom().privateKey,
-        provider: Provider | null | undefined = initEtherProvider(),
-        userOnboardInfo: OnboardInfo | null = null
+        privateKey: string | SigningKey,
+        provider?: Provider | null,
+        userOnboardInfo?: OnboardInfo
     ) {
         super(privateKey, provider);
         this._userOnboardInfo = userOnboardInfo;
@@ -29,7 +31,7 @@ export class Wallet extends BaseWallet {
         return this._autoOnboard;
     }
 
-    getUserOnboardInfo(): OnboardInfo | null {
+    getUserOnboardInfo(): OnboardInfo | undefined {
         return this._userOnboardInfo;
     }
 
@@ -60,7 +62,7 @@ export class Wallet extends BaseWallet {
         } else this._userOnboardInfo = {rsaKey: rsa}
     }
 
-    async encryptValue(plaintextValue: bigint | number | string, contractAddress: string, functionSelector: string) {
+    async encryptValue(plaintextValue: bigint | number | string, contractAddress: string, functionSelector: string): Promise<itUint | itString> {
         if (this._userOnboardInfo?.aesKey === null || this._userOnboardInfo?.aesKey === undefined) {
             if (this._autoOnboard) {
                 console.warn("user AES key is not defined and need to onboard or recovered.")
@@ -69,22 +71,21 @@ export class Wallet extends BaseWallet {
                     throw new Error("user AES key is not defined and cannot be onboarded or recovered.")
 
                 }
-            } else
-                throw new Error("user AES key is not defined and auto onboard is off .")
-
+            } else {
+                throw new Error("user AES key is not defined and auto onboard is off.")
+            }
         }
         const value = typeof plaintextValue === 'number' ? BigInt(plaintextValue) : plaintextValue
 
         let result;
 
         if (typeof value === 'bigint') {
-            const singleResult = buildInputText(value, {
+            result = buildInputText(value, {
                 wallet: this,
                 userKey: this._userOnboardInfo.aesKey
             }, contractAddress, functionSelector);
-            result = [{ciphertext: singleResult.ctInt, signature: singleResult.signature}];
         } else if (typeof value === 'string') {
-            result = await buildStringInputText(value, {
+            result = buildStringInputText(value, {
                 wallet: this,
                 userKey: this._userOnboardInfo.aesKey
             }, contractAddress, functionSelector);
@@ -95,7 +96,7 @@ export class Wallet extends BaseWallet {
         return result;
     }
 
-    async decryptValue(ciphertext: bigint | Array<bigint>) {
+    async decryptValue(ciphertext: ctUint | ctString) {
         if (this._userOnboardInfo?.aesKey === null || this._userOnboardInfo?.aesKey === undefined) {
             if (this._autoOnboard) {
                 console.warn("user AES key is not defined and need to onboard or recovered.")
@@ -124,7 +125,7 @@ export class Wallet extends BaseWallet {
     }
 
     clearUserOnboardInfo() {
-        this._userOnboardInfo = null
+        this._userOnboardInfo = undefined
     }
 
     async generateOrRecoverAes(onboardContractAddress: string = DEVNET_ONBOARD_CONTRACT_ADDRESS) {
@@ -132,9 +133,9 @@ export class Wallet extends BaseWallet {
             return
         else if (this._userOnboardInfo && this._userOnboardInfo.rsaKey && this._userOnboardInfo.txHash)
             this.setAesKey(await recoverAesFromTx(this._userOnboardInfo.txHash, this._userOnboardInfo.rsaKey,
-                onboardContractAddress, this))
+                onboardContractAddress, this.provider))
         else {
-            const accountBalance = await getAccountBalance(this.address, this.provider || initEtherProvider())
+            const accountBalance = await getAccountBalance(this.address, this.provider || getDefaultProvider(CotiNetwork.Devnet))
             if (accountBalance > BigInt(0))
                 this.setUserOnboardInfo(await onboard(onboardContractAddress, this))
             else

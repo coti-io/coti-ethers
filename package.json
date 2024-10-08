@@ -1,6 +1,6 @@
 {
   "name": "@coti-io/coti-ethers",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "license": "Apache 2.0",
   "description": "A Web3 library for interacting with the COTI V2 blockchain.",
   "main": "dist/index.js",
@@ -20,13 +20,12 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
-    "ethers": "^6.13.1",
-    "@coti-io/coti-sdk-typescript": "git+https://github.com/coti-io/coti-sdk-typescript.git#c8990bd960d0291243d72646ecea43c14300339d"
+    "@coti-io/coti-sdk-typescript": "0.6.6",
+    "ethers": "^6.13.1"
   },
   "scripts": {
     "build": "tsc",
     "prepare": "tsc",
-    "test": "ts-node test/test.ts",
-    "testWallet": "yarn test ./test/testNew.ts"
+    "test": "mocha --require ts-node/register ./test/wallet.test.ts"
   }
 }

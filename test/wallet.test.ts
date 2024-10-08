@@ -1,46 +1,38 @@
 import {Wallet as etherWallet} from "ethers"
-import {DEVNET_ONBOARD_CONTRACT_ADDRESS, getAccountOnboardContract, Wallet} from '../src'
+import {CotiNetwork, DEVNET_ONBOARD_CONTRACT_ADDRESS, getAccountOnboardContract, getDefaultProvider, Wallet} from '../src'
 import {expect} from "chai"
-import 'dotenv/config';
+import dotenv from "dotenv"
 
+dotenv.config()
 
-describe("Wallet tests", async function () {
-    this.timeout(20000);
+describe("Wallet tests", function () {
+    this.timeout(30000);
     const pk = process.env.PRIVATE_KEY || Wallet.createRandom().privateKey;
+    let wallet: Wallet
 
-    it('Should successfully create wallet without aes key', async function () {
-        const wallet = new Wallet(pk);
+    it('Should successfully create wallet without aes key', function () {
+        const provider = getDefaultProvider(CotiNetwork.Devnet)
+        wallet = new Wallet(pk, provider);
         expect(wallet.address).to.equal(new etherWallet(pk).address);
-        expect(wallet.getUserOnboardInfo()).to.be.null
+        expect(wallet.getUserOnboardInfo()).to.be.undefined
     })
 
-    it('Should successfully create wallet and onboard it.', async function () {
-        const wallet = new Wallet(pk);
+    it('Should successfully onboard the wallet', async function () {
         await wallet.generateOrRecoverAes()
-        expect(wallet.address).to.equal(new etherWallet(pk).address);
         expect(wallet.getUserOnboardInfo()?.aesKey).to.not.equal(null);
-        expect(wallet.getUserOnboardInfo()?.aesKey).to.equal(process.env.AES_KEY);
+        expect(wallet.getUserOnboardInfo()?.aesKey).to.equal(process.env.USER_KEY);
     })
 
     it('Should successfully encrypt and decrypt', async function () {
         const msg = "hello world"
-        const wallet = new Wallet(pk);
-        await wallet.generateOrRecoverAes()
         const accountOnboardContract: any = getAccountOnboardContract(DEVNET_ONBOARD_CONTRACT_ADDRESS, wallet)
-        // const func = accountOnboardContract.fragment.onboard
-        const ct: { ctInt: bigint; signature: Uint8Array; } | {
-            ciphertext: bigint,
-            signature: Uint8Array
-        }[] = await wallet.encryptValue(msg, DEVNET_ONBOARD_CONTRACT_ADDRESS, accountOnboardContract.interface.fragments[1].selector);
-        let pt
-        const ciphertexts = ct.map((val) => val.ciphertext);
-        pt = await wallet.decryptValue(ciphertexts);
-        expect(ciphertexts[0]).to.not.equal(msg[0])
+        const inputText = await wallet.encryptValue(msg, DEVNET_ONBOARD_CONTRACT_ADDRESS, accountOnboardContract.interface.fragments[1].selector);
+        let pt = await wallet.decryptValue(inputText.ciphertext);
         expect(pt).to.equal(msg)
 
     })
 
-    it('Should failed encrypt when autoOnboard flag off', async function () {
+    it('Should fail to encrypt when autoOnboard flag off', async function () {
         const wallet = new Wallet(pk);
         wallet.disableAutoOnboard();
         const accountOnboardContract: any = getAccountOnboardContract(DEVNET_ONBOARD_CONTRACT_ADDRESS, wallet);
@@ -60,8 +52,9 @@ describe("Wallet tests", async function () {
         expect(ct).to.be.undefined;
     });
 
-    it('Should aes recovered from tx hash and rsa key', async function () {
-        const wallet = new Wallet(pk);
+    it('Should recover aes key from tx hash and rsa key', async function () {
+        const provider = getDefaultProvider(CotiNetwork.Devnet)
+        const wallet = new Wallet(pk, provider);
         await wallet.generateOrRecoverAes()
         const onBoardInfo = {
             rsaKey: {
@@ -70,19 +63,19 @@ describe("Wallet tests", async function () {
             },
             txHash: process.env.TX_HASH
         }
-        const wallet2 = new Wallet(pk, null, onBoardInfo);
+        const wallet2 = new Wallet(pk, provider, onBoardInfo);
         await wallet2.generateOrRecoverAes()
         expect(wallet.address).to.equal(wallet2.address);
         expect(wallet.getUserOnboardInfo()?.aesKey).to.equal(wallet2.getUserOnboardInfo()?.aesKey);
     })
 
-    it('Should be able to set autoOnboard off', async function () {
+    it('Should be able to set autoOnboard off', function () {
         const wallet = new Wallet(pk);
         wallet.disableAutoOnboard()
         expect(wallet.getAutoOnboard()).to.equal(false)
     })
 
-    it('Should be able to set autoOnboard on', async function () {
+    it('Should be able to set autoOnboard on', function () {
         const wallet = new Wallet(pk);
         wallet.disableAutoOnboard()
         expect(wallet.getAutoOnboard()).to.equal(false)
@@ -91,7 +84,7 @@ describe("Wallet tests", async function () {
 
     })
 
-    it('Should be able to set userOnboardInfo parameters.', async function () {
+    it('Should be able to set userOnboardInfo parameters', function () {
         const wallet = new Wallet(pk);
         const rsaKey = {
             publicKey: parseRsaKey(process.env.RSA_PUB),
@@ -102,10 +95,10 @@ describe("Wallet tests", async function () {
         wallet.setOnboardTxHash(txHash)
         const aesKey = process.env.AES_KEY || "e0262555000f88878acc5b38146fbd05"
         wallet.setAesKey(aesKey)
-        expect(wallet.getUserOnboardInfo()).to.not.be.null
+        expect(wallet.getUserOnboardInfo()).to.not.be.undefined
     })
 
-    it('Should be able to reset userOnboardInfo parameters.', async function () {
+    it('Should be able to reset userOnboardInfo parameters', function () {
         const wallet = new Wallet(pk);
         const rsaKey = {
             publicKey: parseRsaKey(process.env.RSA_PUB),
@@ -116,9 +109,9 @@ describe("Wallet tests", async function () {
         wallet.setOnboardTxHash(txHash)
         const aesKey = process.env.AES_KEY || "e0262555000f88878acc5b38146fbd05"
         wallet.setAesKey(aesKey)
-        expect(wallet.getUserOnboardInfo()).to.not.be.null
+        expect(wallet.getUserOnboardInfo()).to.not.be.undefined
         wallet.clearUserOnboardInfo()
-        expect(wallet.getUserOnboardInfo()).to.be.null
+        expect(wallet.getUserOnboardInfo()).to.be.undefined
     })
 })
 

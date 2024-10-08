@@ -1,3 +1,7 @@
+export enum CotiNetwork {
+    Devnet = 'https://devnet.coti.io/rpc'
+}
+
 export type OnboardInfo = {
     aesKey?: string | null | undefined;
     rsaKey?: RsaKeyPair | null | undefined;
