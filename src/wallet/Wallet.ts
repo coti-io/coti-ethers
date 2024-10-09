@@ -135,7 +135,7 @@ export class Wallet extends BaseWallet {
             this.setAesKey(await recoverAesFromTx(this._userOnboardInfo.txHash, this._userOnboardInfo.rsaKey,
                 onboardContractAddress, this.provider))
         else {
-            const accountBalance = await getAccountBalance(this.address, this.provider || getDefaultProvider(CotiNetwork.Devnet))
+            const accountBalance = await getAccountBalance(this.address, this.provider || getDefaultProvider(CotiNetwork.Testnet))
             if (accountBalance > BigInt(0))
                 this.setUserOnboardInfo(await onboard(onboardContractAddress, this))
             else

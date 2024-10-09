@@ -1,4 +1,4 @@
-export const ONBOARD_CONTRACT_ADDRESS = "0x413370ed41FB9EE3aea0B1B91FD336cC0be1Bad6"
+export const ONBOARD_CONTRACT_ADDRESS = "0x60eA13A5f263f77f7a2832cfEeF1729B1688477c"
 
 export const ONBOARD_CONTRACT_ABI = [
     {
@@ -13,7 +13,13 @@ export const ONBOARD_CONTRACT_ABI = [
             {
                 "indexed": false,
                 "internalType": "bytes",
-                "name": "userKey",
+                "name": "userKey1",
+                "type": "bytes"
+            },
+            {
+                "indexed": false,
+                "internalType": "bytes",
+                "name": "userKey2",
                 "type": "bytes"
             }
         ],

@@ -1,5 +1,5 @@
 export enum CotiNetwork {
-    Devnet = 'https://devnet.coti.io/rpc'
+    Testnet = 'https://testnet.coti.io/rpc'
 }
 
 export type OnboardInfo = {

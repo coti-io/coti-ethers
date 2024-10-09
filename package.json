@@ -1,6 +1,6 @@
 {
   "name": "@coti-io/coti-ethers",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "license": "Apache 2.0",
   "description": "A Web3 library for interacting with the COTI V2 blockchain.",
   "main": "dist/index.js",
@@ -20,7 +20,7 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
-    "@coti-io/coti-sdk-typescript": "0.6.6",
+    "@coti-io/coti-sdk-typescript": "1.0.3",
     "ethers": "^6.13.1"
   },
   "scripts": {

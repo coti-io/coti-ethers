@@ -11,7 +11,7 @@ describe("Wallet tests", function () {
     let wallet: Wallet
 
     it('Should successfully create wallet without aes key', function () {
-        const provider = getDefaultProvider(CotiNetwork.Devnet)
+        const provider = getDefaultProvider(CotiNetwork.Testnet)
         wallet = new Wallet(pk, provider);
         expect(wallet.address).to.equal(new etherWallet(pk).address);
         expect(wallet.getUserOnboardInfo()).to.be.undefined
@@ -53,7 +53,7 @@ describe("Wallet tests", function () {
     });
 
     it('Should recover aes key from tx hash and rsa key', async function () {
-        const provider = getDefaultProvider(CotiNetwork.Devnet)
+        const provider = getDefaultProvider(CotiNetwork.Testnet)
         const wallet = new Wallet(pk, provider);
         await wallet.generateOrRecoverAes()
         const onBoardInfo = {
