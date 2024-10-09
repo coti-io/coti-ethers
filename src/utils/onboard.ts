@@ -1,21 +1,29 @@
-import {BaseWallet, Contract, keccak256, Signer} from "ethers";
-import {decryptRSA, generateRSAKeyPair, initEtherProvider, sign} from "@coti-io/coti-sdk-typescript";
-import {RsaKeyPair} from "./types";
-import {ONBOARD_CONTRACT_ABI} from "./constants";
+import { Contract, ContractRunner, keccak256, Provider } from "ethers"
+import { getDefaultProvider } from "./network"
+import { decryptRSA, generateRSAKeyPair, sign } from "@coti-io/coti-sdk-typescript"
+import { CotiNetwork, RsaKeyPair } from "../types"
+import { ONBOARD_CONTRACT_ABI } from "./constants"
+import { Wallet } from "../wallet/Wallet"
+import { JsonRpcSigner } from "../providers/JsonRpcSigner"
 
-export function getAccountOnboardContract(contractAddress: string, wallet?: Signer) {
-    return new Contract(contractAddress, JSON.stringify(ONBOARD_CONTRACT_ABI), wallet)
+export function getAccountOnboardContract(contractAddress: string, runner?: ContractRunner) {
+    return new Contract(contractAddress, JSON.stringify(ONBOARD_CONTRACT_ABI), runner)
 }
 
-
-export async function onboard(defaultOnboardContractAddress: string, wallet: BaseWallet) {
+export async function onboard(defaultOnboardContractAddress: string, signer: Wallet | JsonRpcSigner) {
     try {
-        const accountOnboardContract: any = getAccountOnboardContract(defaultOnboardContractAddress, wallet)
+        const accountOnboardContract: any = getAccountOnboardContract(defaultOnboardContractAddress, signer)
         const {publicKey, privateKey} = generateRSAKeyPair()
 
-        let receipt;
-        const signedEK = sign(keccak256(publicKey), wallet.privateKey)
-        receipt = await (await accountOnboardContract.onboardAccount(publicKey, signedEK, {gasLimit: 12000000})).wait()
+        let signedEK: string | Uint8Array
+
+        if (signer instanceof Wallet) {
+            signedEK = sign(keccak256(publicKey), signer.privateKey)
+        } else {
+            signedEK = await signer.signMessage(publicKey)
+        }
+
+        const receipt = await (await accountOnboardContract.onboardAccount(publicKey, signedEK, {gasLimit: 12000000})).wait()
 
         if (!receipt || !receipt.logs || !receipt.logs[0]) {
             throw new Error("failed to onboard account")
@@ -25,7 +33,7 @@ export async function onboard(defaultOnboardContractAddress: string, wallet: Bas
             throw new Error("failed to onboard account")
         }
         const encryptedKey = decodedLog.args.userKey
-        console.log(encryptedKey)
+        
         return {
             aesKey: decryptRSA(privateKey, encryptedKey.substring(2)),
             rsaKey: {publicKey: publicKey, privateKey: privateKey},
@@ -38,15 +46,14 @@ export async function onboard(defaultOnboardContractAddress: string, wallet: Bas
 
 }
 
-
 export async function recoverAesFromTx(txHash: string,
                                        rsaKey: RsaKeyPair,
                                        defaultOnboardContractAddress: string,
-                                       wallet: BaseWallet) {
+                                       provider: Provider | null) {
     try {
-        const receipt = wallet.provider
-            ? await wallet.provider.getTransactionReceipt(txHash)
-            : await initEtherProvider().getTransactionReceipt(txHash);
+        const receipt = provider
+            ? await provider.getTransactionReceipt(txHash)
+            : await getDefaultProvider(CotiNetwork.Devnet).getTransactionReceipt(txHash)
 
         if (!receipt || !receipt.logs || !receipt.logs[0]) {
             console.error("failed to get onboard tx info")
