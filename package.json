@@ -1,6 +1,6 @@
 {
   "name": "@coti-io/coti-ethers",
-  "version": "1.0.0b",
+  "version": "1.0.2",
   "license": "Apache 2.0",
   "description": "A Web3 library for interacting with the COTI blockchain.",
   "main": "dist/index.js",
