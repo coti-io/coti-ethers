@@ -2,14 +2,19 @@
   "name": "@coti-io/coti-ethers",
   "version": "1.0.0b",
   "license": "Apache 2.0",
-  "description": "A Web3 library for interacting with the COTI blockchain.",
+  "description": "A complete and compact library for the COTI blockchain, for dapps, wallets and any other tools.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
     "/dist"
   ],
-  "repository": "https://github.com/coti-io/coti-ethers.git",
-  "author": "Spencer Miller <spencer@coti.io>",
+  "author": "COTI Development",
+  "repository": {
+    "type": "git",
+     "url": "git://github.com/coti-io/coti-ethers.git"
+  },
+  "homepage": "https://docs.coti.io/coti-v2-documentation/build-on-coti/tools/ethers.js",
+  "keywords": ["coti", "privacy", "ethereum", "blockchain", "web3", "garbled-circuits", "l2", "on-chain-compute"],
   "devDependencies": {
     "@types/chai": "^4.2.0",
     "@types/mocha": ">=9.1.0",
