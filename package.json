@@ -1,6 +1,6 @@
 {
   "name": "@coti-io/coti-ethers",
-  "version": "1.0.0b",
+  "version": "1.0.5",
   "license": "Apache 2.0",
   "description": "A complete and compact library for the COTI blockchain, for dapps, wallets and any other tools.",
   "main": "dist/index.js",
@@ -11,10 +11,19 @@
   "author": "COTI Development",
   "repository": {
     "type": "git",
-     "url": "git://github.com/coti-io/coti-ethers.git"
+    "url": "git://github.com/coti-io/coti-ethers.git"
   },
   "homepage": "https://docs.coti.io/coti-v2-documentation/build-on-coti/tools/ethers.js",
-  "keywords": ["coti", "privacy", "ethereum", "blockchain", "web3", "garbled-circuits", "l2", "on-chain-compute"],
+  "keywords": [
+    "coti",
+    "privacy",
+    "ethereum",
+    "blockchain",
+    "web3",
+    "garbled-circuits",
+    "l2",
+    "on-chain-compute"
+  ],
   "devDependencies": {
     "@types/chai": "^4.2.0",
     "@types/mocha": ">=9.1.0",
