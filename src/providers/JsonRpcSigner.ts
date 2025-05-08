@@ -1,4 +1,30 @@
-import {ctString, ctUint, decodeUint, decryptString, decryptUint, encodeKey, encodeUint, encrypt, itString, itUint} from "@coti-io/coti-sdk-typescript";
+import {
+    ctString,
+    ctUint8,
+    ctUint16,
+    ctUint32,
+    ctUint64,
+    ctUint128,
+    ctUint256,
+    decodeUint,
+    decryptString,
+    decryptUint8,
+    decryptUint16,
+    decryptUint32,
+    decryptUint64,
+    decryptUint128,
+    decryptUint256,
+    encodeKey,
+    encodeUint,
+    encrypt,
+    itString,
+    itUint8,
+    itUint16,
+    itUint32,
+    itUint64,
+    itUint128,
+    itUint256
+} from "@coti-io/coti-sdk-typescript";
 import {JsonRpcSigner as BaseJsonRpcSigner, JsonRpcApiProvider, solidityPacked} from "ethers"
 import {CotiNetwork, OnboardInfo, RsaKeyPair} from "../types";
 import {ONBOARD_CONTRACT_ADDRESS} from "../utils/constants";
@@ -15,12 +41,12 @@ export class JsonRpcSigner extends BaseJsonRpcSigner {
         this._userOnboardInfo = userOnboardInfo;
     }
 
-    async #buildInputText(
+    async #buildUintInputText(
         plaintext: bigint,
         userKey: string,
         contractAddress: string,
         functionSelector: string
-    ): Promise<itUint> {
+    ): Promise<itUint8 | itUint16 | itUint32 | itUint64> {
         if (plaintext >= BigInt(2) ** BigInt(64)) {
             throw new RangeError("Plaintext size must be 64 bits or smaller.")
         }
@@ -85,7 +111,7 @@ export class JsonRpcSigner extends BaseJsonRpcSigner {
 
             const byteArr = new Uint8Array([...encodedStr.slice(startIdx, endIdx), ...new Uint8Array(EIGHT_BYTES - (endIdx - startIdx))]) // pad the end of the string with zeros if needed
 
-            const it = await this.#buildInputText(
+            const it = await this.#buildUintInputText(
                 decodeUint(byteArr), // convert the 8-byte hex string into a number
                 userKey,
                 contractAddress,
@@ -146,63 +172,190 @@ export class JsonRpcSigner extends BaseJsonRpcSigner {
         this._userOnboardInfo = undefined
     }
 
-    async encryptValue(plaintextValue: bigint | number | string, contractAddress: string, functionSelector: string): Promise<itUint | itString> {
-        if (this._userOnboardInfo?.aesKey === null || this._userOnboardInfo?.aesKey === undefined) {
-            if (this._autoOnboard) {
-                console.warn("user AES key is not defined and need to onboard or recovered.")
-                await this.generateOrRecoverAes()
-                if (!this._userOnboardInfo || this._userOnboardInfo.aesKey === undefined || this._userOnboardInfo.aesKey === null) {
-                    throw new Error("user AES key is not defined and cannot be onboarded or recovered.")
+    async #checkAesKey() {
+        if (this._userOnboardInfo?.aesKey !== null && this._userOnboardInfo?.aesKey !== undefined) return
 
-                }
-            } else
-                throw new Error("user AES key is not defined and auto onboard is off .")
+        if (!this._autoOnboard) {
+            throw new Error("user AES key is not defined and auto onboard is off.")
+        }
+
+        console.warn("user AES key is not defined and need to onboard or recovered.")
+        await this.generateOrRecoverAes()
+        if (!this._userOnboardInfo || this._userOnboardInfo.aesKey === undefined || this._userOnboardInfo.aesKey === null) {
+            throw new Error("user AES key is not defined and cannot be onboarded or recovered.")
 
         }
+    }
+
+    async encryptUint8(plaintextValue: bigint | number, contractAddress: string, functionSelector: string): Promise<itUint8> {
+        await this.#checkAesKey()
 
         const value = typeof plaintextValue === 'number' ? BigInt(plaintextValue) : plaintextValue
 
-        let result;
-
-        if (typeof value === 'bigint') {
-            result = await this.#buildInputText(
-                value,
-                this._userOnboardInfo.aesKey,
-                contractAddress,
-                functionSelector
-            );
-        } else if (typeof value === 'string') {
-            result = await this.#buildStringInputText(
-                value,
-                this._userOnboardInfo.aesKey,
-                contractAddress,
-                functionSelector
-            );
-        } else {
-            throw new Error("Unknown type");
-        }
-
-        return result;
+        return await this.#buildUintInputText(
+            value,
+            this._userOnboardInfo!.aesKey!,
+            contractAddress,
+            functionSelector
+        )
     }
 
-    async decryptValue(ciphertext: ctUint | ctString): Promise<bigint | string> {
-        if (this._userOnboardInfo?.aesKey === null || this._userOnboardInfo?.aesKey === undefined) {
-            if (this._autoOnboard) {
-                console.warn("user AES key is not defined and need to onboard or recovered.")
-                await this.generateOrRecoverAes()
-                if (!this._userOnboardInfo || this._userOnboardInfo.aesKey === undefined || this._userOnboardInfo.aesKey === null) {
-                    throw new Error("user AES key is not defined and cannot be onboarded or recovered.")
+    async encryptUint16(plaintextValue: bigint | number, contractAddress: string, functionSelector: string): Promise<itUint16> {
+        await this.#checkAesKey()
 
-                }
-            } else
-                throw new Error("user AES key is not defined and auto onboard is off .")
+        const value = typeof plaintextValue === 'number' ? BigInt(plaintextValue) : plaintextValue
+
+        return await this.#buildUintInputText(
+            value,
+            this._userOnboardInfo!.aesKey!,
+            contractAddress,
+            functionSelector
+        )
+    }
+
+    async encryptUint32(plaintextValue: bigint | number, contractAddress: string, functionSelector: string): Promise<itUint32> {
+        await this.#checkAesKey()
+
+        const value = typeof plaintextValue === 'number' ? BigInt(plaintextValue) : plaintextValue
+
+        return await this.#buildUintInputText(
+            value,
+            this._userOnboardInfo!.aesKey!,
+            contractAddress,
+            functionSelector
+        )
+    }
+
+    async encryptUint64(plaintextValue: bigint | number, contractAddress: string, functionSelector: string): Promise<itUint64> {
+        await this.#checkAesKey()
+
+        const value = typeof plaintextValue === 'number' ? BigInt(plaintextValue) : plaintextValue
+
+        return await this.#buildUintInputText(
+            value,
+            this._userOnboardInfo!.aesKey!,
+            contractAddress,
+            functionSelector
+        )
+    }
+
+    async encryptUint128(plaintextValue: bigint | number, contractAddress: string, functionSelector: string): Promise<itUint128> {
+        await this.#checkAesKey()
+
+        const value = typeof plaintextValue === 'number' ? BigInt(plaintextValue) : plaintextValue
+
+        // Convert to hex string and ensure it is 32 characters (16 bytes)
+        const hexString = value.toString(16).padStart(32, '0');
+
+        // Split into two 8-byte (16-character) segments
+        const high = hexString.slice(0, 16);
+        const low = hexString.slice(16, 32);
+
+        const itHigh = await this.#buildUintInputText(
+            BigInt(`0x${high}`),
+            this._userOnboardInfo!.aesKey!,
+            contractAddress,
+            functionSelector
+        );
+        const itLow = await this.#buildUintInputText(
+            BigInt(`0x${low}`),
+            this._userOnboardInfo!.aesKey!,
+            contractAddress,
+            functionSelector
+        );
+
+        return {
+            ciphertext: {
+                high: itHigh.ciphertext,
+                low: itLow.ciphertext
+            },
+            signature: [itHigh.signature, itLow.signature]
         }
+    }
 
-        if (typeof ciphertext === 'bigint') {
-            return decryptUint(ciphertext, this._userOnboardInfo.aesKey)
+    async encryptUint256(plaintextValue: bigint | number, contractAddress: string, functionSelector: string): Promise<itUint256> {
+        await this.#checkAesKey()
+
+        const value = typeof plaintextValue === 'number' ? BigInt(plaintextValue) : plaintextValue
+
+        // Convert to hex string and ensure it is 64 characters (32 bytes)
+        const hexString = value.toString(16).padStart(64, '0');
+    
+        // Split into two 16-byte (-character) segments
+        const high = hexString.slice(0, 32);
+        const low = hexString.slice(32, 64);
+
+        const itHigh = await this.encryptUint128(
+            BigInt(`0x${high}`),
+            contractAddress,
+            functionSelector
+        );
+        const itLow = await this.encryptUint128(
+            BigInt(`0x${low}`),
+            contractAddress,
+            functionSelector
+        );
+
+        return {
+            ciphertext: {
+                high: itHigh.ciphertext,
+                low: itLow.ciphertext
+            },
+            signature: [itHigh.signature, itLow.signature]
         }
+    }
 
-        return decryptString(ciphertext, this._userOnboardInfo.aesKey)
+    async encryptString(plaintextValue: string, contractAddress: string, functionSelector: string): Promise<itString> {
+        await this.#checkAesKey()
+
+        return await this.#buildStringInputText(
+            plaintextValue,
+            this._userOnboardInfo!.aesKey!,
+            contractAddress,
+            functionSelector
+        )
+    }
+
+    async decryptUint8(ciphertext: ctUint8): Promise<bigint> {
+        await this.#checkAesKey()
+
+        return await decryptUint8(ciphertext, this._userOnboardInfo!.aesKey!)
+    }
+
+    async decryptUint16(ciphertext: ctUint16): Promise<bigint> {
+        await this.#checkAesKey()
+
+        return await decryptUint16(ciphertext, this._userOnboardInfo!.aesKey!)
+    }
+
+    async decryptUint32(ciphertext: ctUint32): Promise<bigint> {
+        await this.#checkAesKey()
+
+        return await decryptUint32(ciphertext, this._userOnboardInfo!.aesKey!)
+    }
+
+    async decryptUint64(ciphertext: ctUint64): Promise<bigint> {
+        await this.#checkAesKey()
+
+        return await decryptUint64(ciphertext, this._userOnboardInfo!.aesKey!)
+    }
+
+    async decryptUint128(ciphertext: ctUint128): Promise<bigint> {
+        await this.#checkAesKey()
+
+        return await decryptUint128(ciphertext, this._userOnboardInfo!.aesKey!)
+    }
+
+    async decryptUint256(ciphertext: ctUint256): Promise<bigint> {
+        await this.#checkAesKey()
+
+        return await decryptUint256(ciphertext, this._userOnboardInfo!.aesKey!)
+    }
+
+    async decryptString(ciphertext: ctString): Promise<string> {
+        await this.#checkAesKey()
+
+        return await decryptString(ciphertext, this._userOnboardInfo!.aesKey!)
     }
 
     async generateOrRecoverAes(onboardContractAddress: string = ONBOARD_CONTRACT_ADDRESS) {
