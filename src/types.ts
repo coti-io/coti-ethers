@@ -1,6 +1,6 @@
 export enum CotiNetwork {
     Testnet = 'https://testnet.coti.io/rpc',
-    Mainnet = 'https://mainnet.coti.io/rpc'
+    Mainnet = 'https://mainnet.coti.io/rpc',
 }
 
 export type OnboardInfo = {
