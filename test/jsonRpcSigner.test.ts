@@ -1,6 +1,6 @@
 import { BrowserProvider } from '../src/providers/BrowserProvider';
 import { JsonRpcSigner } from '../src/providers/JsonRpcSigner';
-import { itUint, itUint256, itString } from '@coti-io/coti-sdk-typescript';
+import { itUint, itUint256, itString, ctUint256 } from '@coti-io/coti-sdk-typescript';
 import dotenv from "dotenv";
 
 // Load environment variables
@@ -26,6 +26,66 @@ class MockEthereum {
             return "0x" + "1".repeat(130);
         }
         throw new Error(`Method ${payload.method} not implemented`);
+    }
+}
+
+// Helper function to reduce code duplication
+async function testEncryptionDecryption(
+    name: string,
+    originalValue: bigint | string,
+    signer: JsonRpcSigner,
+    contractAddress: string,
+    functionSelector: string,
+    use256Bit: boolean = false
+): Promise<void> {
+    console.log(`\n${name}...`);
+    
+    // Encrypt
+    let encrypted: itUint | itUint256 | itString;
+    if (use256Bit && typeof originalValue === 'bigint') {
+        encrypted = await signer.encryptValue256(originalValue, contractAddress, functionSelector);
+        const encrypted256 = encrypted as itUint256;
+        console.log(`✅ ${name} encrypted:`);
+        console.log(`   High: ${encrypted256.ciphertext.ciphertextHigh}`);
+        console.log(`   Low: ${encrypted256.ciphertext.ciphertextLow}`);
+    } else {
+        encrypted = await signer.encryptValue(originalValue, contractAddress, functionSelector);
+        if (typeof originalValue === 'string') {
+            const encryptedString = encrypted as itString;
+            console.log(`✅ ${name} encrypted: ${encryptedString.ciphertext.value.length} chunks`);
+        } else {
+            const encryptedUint = encrypted as itUint;
+            console.log(`✅ ${name} encrypted: ${encryptedUint.ciphertext}`);
+        }
+    }
+    
+    // Decrypt
+    let decrypted: bigint | string;
+    if (use256Bit && typeof originalValue === 'bigint') {
+        const encrypted256 = encrypted as itUint256;
+        decrypted = await signer.decryptValue256({
+            ciphertextHigh: encrypted256.ciphertext.ciphertextHigh,
+            ciphertextLow: encrypted256.ciphertext.ciphertextLow
+        } as ctUint256);
+    } else {
+        if (typeof originalValue === 'string') {
+            const encryptedString = encrypted as itString;
+            decrypted = await signer.decryptValue(encryptedString.ciphertext);
+        } else {
+            const encryptedUint = encrypted as itUint;
+            decrypted = await signer.decryptValue(encryptedUint.ciphertext);
+        }
+    }
+    
+    // Verify
+    console.log(`   Original: ${typeof originalValue === 'string' ? `"${originalValue}"` : originalValue.toString()}`);
+    console.log(`   Decrypted: ${typeof decrypted === 'string' ? `"${decrypted}"` : decrypted.toString()}`);
+    
+    if (decrypted === originalValue) {
+        console.log(`✅ ${name}: PASSED`);
+    } else {
+        console.log(`❌ ${name}: FAILED`);
+        throw new Error(`${name} mismatch: expected ${originalValue}, got ${decrypted}`);
     }
 }
 
@@ -60,82 +120,87 @@ async function test() {
     
     // Test values
     const value64 = BigInt(1000000);
-    const value128 = BigInt("340282366920938463463374607431768211455");
-    const value256 = BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935");
+    const value128 = BigInt("340282366920938463463374607431768211455"); // Max 128-bit
+    const value256 = BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935"); // Max 256-bit
     const valueString = "Hello COTI!";
     
     console.log("=".repeat(60));
-    console.log("ENCRYPTION TESTS");
+    console.log("ENCRYPTION/DECRYPTION TESTS");
     console.log("=".repeat(60));
     
-    console.log("\n1. Testing 64-bit encryption...");
-    const encrypted64Result = await signer.encryptValue(value64, contractAddress, functionSelector);
-    const encrypted64 = encrypted64Result as itUint;
-    console.log("✅ 64-bit encrypted:", encrypted64.ciphertext);
+    // Test 64-bit value (uses encryptValue)
+    await testEncryptionDecryption(
+        "1. Testing 64-bit encryption/decryption",
+        value64,
+        signer,
+        contractAddress,
+        functionSelector,
+        false
+    );
     
-    console.log("\n2. Testing 128-bit encryption...");
-    const encrypted128Result = await signer.encryptValue(value128, contractAddress, functionSelector);
-    const encrypted128 = encrypted128Result as itUint;
-    console.log("✅ 128-bit encrypted:", encrypted128.ciphertext);
+    // Test 128-bit value (uses encryptValue)
+    await testEncryptionDecryption(
+        "2. Testing 128-bit encryption/decryption",
+        value128,
+        signer,
+        contractAddress,
+        functionSelector,
+        false
+    );
     
-    console.log("\n3. Testing 256-bit encryption...");
-    const encrypted256Result = await signer.encryptValue(value256, contractAddress, functionSelector);
-    const encrypted256 = encrypted256Result as itUint256;
-    console.log("✅ 256-bit encrypted:");
-    console.log("   High:", encrypted256.ciphertext.ciphertextHigh);
-    console.log("   Low:", encrypted256.ciphertext.ciphertextLow);
+    // Test 256-bit value (uses encryptValue256)
+    await testEncryptionDecryption(
+        "3. Testing 256-bit encryption/decryption",
+        value256,
+        signer,
+        contractAddress,
+        functionSelector,
+        true
+    );
     
-    console.log("\n4. Testing string encryption...");
-    const encryptedStringResult = await signer.encryptValue(valueString, contractAddress, functionSelector);
-    const encryptedString = encryptedStringResult as itString;
-    console.log("✅ String encrypted:", encryptedString.ciphertext.value.length, "chunks");
+    // Test string (uses encryptValue)
+    await testEncryptionDecryption(
+        "4. Testing string encryption/decryption",
+        valueString,
+        signer,
+        contractAddress,
+        functionSelector,
+        false
+    );
     
+    // Test error cases
     console.log("\n" + "=".repeat(60));
-    console.log("DECRYPTION TESTS");
+    console.log("ERROR HANDLING TESTS");
     console.log("=".repeat(60));
     
-    console.log("\n5. Testing 64-bit decryption...");
-    const decrypted64 = await signer.decryptValue(encrypted64.ciphertext);
-    console.log("   Original:", value64);
-    console.log("   Decrypted:", decrypted64);
-    if (decrypted64 === value64) {
-        console.log("✅ 64-bit decryption: PASSED");
-    } else {
-        console.log("❌ 64-bit decryption: FAILED");
-        throw new Error(`64-bit mismatch: expected ${value64}, got ${decrypted64}`);
+    // Test 129-bit value should fail with encryptValue
+    console.log("\n5. Testing 129-bit value rejection (encryptValue)...");
+    const value129 = 2n ** 128n; // 129-bit value
+    try {
+        await signer.encryptValue(value129, contractAddress, functionSelector);
+        console.log("❌ Should have thrown error for 129-bit value");
+        throw new Error("encryptValue should reject values > 128 bits");
+    } catch (error: any) {
+        if (error.message.includes("values larger than 128 bits are not supported")) {
+            console.log("✅ Correctly rejected 129-bit value");
+        } else {
+            throw error;
+        }
     }
     
-    console.log("\n6. Testing 128-bit decryption...");
-    const decrypted128 = await signer.decryptValue(encrypted128.ciphertext);
-    console.log("   Original:", value128);
-    console.log("   Decrypted:", decrypted128);
-    if (decrypted128 === value128) {
-        console.log("✅ 128-bit decryption: PASSED");
-    } else {
-        console.log("❌ 128-bit decryption: FAILED");
-        throw new Error(`128-bit mismatch: expected ${value128}, got ${decrypted128}`);
-    }
-    
-    console.log("\n7. Testing 256-bit decryption...");
-    const decrypted256 = await signer.decryptValue(encrypted256.ciphertext);
-    console.log("   Original:", value256);
-    console.log("   Decrypted:", decrypted256);
-    if (decrypted256 === value256) {
-        console.log("✅ 256-bit decryption: PASSED");
-    } else {
-        console.log("❌ 256-bit decryption: FAILED");
-        throw new Error(`256-bit mismatch: expected ${value256}, got ${decrypted256}`);
-    }
-    
-    console.log("\n8. Testing string decryption...");
-    const decryptedString = await signer.decryptValue(encryptedString.ciphertext);
-    console.log("   Original:", `"${valueString}"`);
-    console.log("   Decrypted:", `"${decryptedString}"`);
-    if (decryptedString === valueString) {
-        console.log("✅ String decryption: PASSED");
-    } else {
-        console.log("❌ String decryption: FAILED");
-        throw new Error(`String mismatch: expected "${valueString}", got "${decryptedString}"`);
+    // Test 257-bit value should fail with encryptValue256
+    console.log("\n6. Testing 257-bit value rejection (encryptValue256)...");
+    const value257 = 2n ** 256n; // 257-bit value
+    try {
+        await signer.encryptValue256(value257, contractAddress, functionSelector);
+        console.log("❌ Should have thrown error for 257-bit value");
+        throw new Error("encryptValue256 should reject values > 256 bits");
+    } catch (error: any) {
+        if (error.message.includes("values larger than 256 bits are not supported")) {
+            console.log("✅ Correctly rejected 257-bit value");
+        } else {
+            throw error;
+        }
     }
     
     console.log("\n" + "=".repeat(60));
@@ -144,3 +209,5 @@ async function test() {
 }
 
 test().catch(console.error);
+
+

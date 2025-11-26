@@ -66,106 +66,116 @@ export class Wallet extends BaseWallet {
         } else this._userOnboardInfo = {rsaKey: rsa}
     }
 
-    async encryptValue(
-        plaintextValue: bigint | number | string, 
-        contractAddress: string, 
-        functionSelector: string,
-        eip191: boolean = false
-    ): Promise<itUint | itUint256 | itString> {
+    /**
+     * Ensures AES key is available, handles onboarding if needed
+     */
+    private async _ensureAesKey(): Promise<void> {
         if (this._userOnboardInfo?.aesKey === null || this._userOnboardInfo?.aesKey === undefined) {
             if (this._autoOnboard) {
                 console.warn("user AES key is not defined and need to onboard or recovered.")
                 await this.generateOrRecoverAes()
                 if (!this._userOnboardInfo || this._userOnboardInfo.aesKey === undefined || this._userOnboardInfo.aesKey === null) {
                     throw new Error("user AES key is not defined and cannot be onboarded or recovered.")
-
                 }
             } else {
                 throw new Error("user AES key is not defined and auto onboard is off.")
             }
         }
+    }
+
+    /**
+     * Encrypts values up to 128 bits (uses prepareIT)
+     */
+    async encryptValue(
+        plaintextValue: bigint | number | string, 
+        contractAddress: string, 
+        functionSelector: string,
+    ): Promise<itUint | itString> {
+        await this._ensureAesKey();
+        
         const value = typeof plaintextValue === 'number' ? BigInt(plaintextValue) : plaintextValue
 
-        let result;
-
         if (typeof value === 'bigint') {
-            // Check the bit size to determine which function to use
             const bitSize = value.toString(2).length
             
             if (bitSize > 128) {
-                // Use prepareIT256 for values > 128 bits
-                result = prepareIT256(
-                    value,
-                    {
-                        wallet: this as any,
-                        userKey: this._userOnboardInfo.aesKey
-                    },
-                    contractAddress,
-                    functionSelector
-                )
-            } else {
-                // Use prepareIT for values <= 128 bits
-                result = prepareIT(
-                    value,
-                    {
-                        wallet: this as any,
-                        userKey: this._userOnboardInfo.aesKey
-                    },
-                    contractAddress,
-                    functionSelector
-                );
-            } 
+                throw new Error("encryptValue: values larger than 128 bits are not supported");
+            }
+            
+            return prepareIT(
+                value,
+                {
+                    wallet: this as any,
+                    userKey: this._userOnboardInfo!.aesKey!
+                },
+                contractAddress,
+                functionSelector
+            );
         } else if (typeof value === 'string') {
-            result = buildStringInputText(value, {
+            return buildStringInputText(value, {
                 wallet: this as any,
-                userKey: this._userOnboardInfo.aesKey
+                userKey: this._userOnboardInfo!.aesKey!
             }, contractAddress, functionSelector);
         } else {
             throw new Error("Unknown type");
         }
-
-        return result;
     }
 
-    async decryptValue(ciphertext: ctUint | ctUint256 | ctString): Promise<bigint | string> {
+    // Encrypts values up to 256 bits (uses prepareIT256)
+    async encryptValue256(
+        plaintextValue: bigint | number,
+        contractAddress: string,
+        functionSelector: string
+    ): Promise<itUint256> {
+        await this._ensureAesKey();
+        
+        const value = typeof plaintextValue === 'number' ? BigInt(plaintextValue) : plaintextValue;
+        const bitSize = value.toString(2).length;
+        
+        if (bitSize > 256) {
+            throw new Error("encryptValue256: values larger than 256 bits are not supported");
+        }
+        
+        return prepareIT256(
+            value,
+            {
+                wallet: this as any,
+                userKey: this._userOnboardInfo!.aesKey!
+            },
+            contractAddress,
+            functionSelector
+        );
+    }
+
+    /**
+     * Decrypts ctUint256 ciphertexts (uses decryptUint256)
+     * Only accepts ciphertexts matching ctUint256 type
+     */
+    async decryptValue256(ciphertext: ctUint256): Promise<bigint> {
+        await this._ensureAesKey();
+        return decryptUint256(ciphertext, this._userOnboardInfo!.aesKey!);
+    }
+
+    /**
+     * Decrypts ctUint and ctString ciphertexts
+     */
+    async decryptValue(ciphertext: ctUint | ctString): Promise<bigint | string> {
         if (this._userOnboardInfo?.aesKey === null || this._userOnboardInfo?.aesKey === undefined) {
             if (this._autoOnboard) {
                 console.warn("user AES key is not defined and need to onboard or recovered.")
                 await this.generateOrRecoverAes()
                 if (!this._userOnboardInfo || this._userOnboardInfo.aesKey === undefined || this._userOnboardInfo.aesKey === null) {
                     throw new Error("user AES key is not defined and cannot be onboarded or recovered.")
-
                 }
             } else
                 throw new Error("user AES key is not defined and auto onboard is off .")
         }
 
-        // Handle null or undefined
-        if (ciphertext === null || ciphertext === undefined) {
-            throw new Error("Ciphertext is null or undefined")
-        }
-
-        // Check if it's ctUint256 (object with ciphertextHigh and ciphertextLow)
-        if (typeof ciphertext === 'object' && 'ciphertextHigh' in ciphertext && 'ciphertextLow' in ciphertext) {
-            return decryptUint256(ciphertext as ctUint256, this._userOnboardInfo.aesKey)
-        }
-
-        // Check if it's ctString (object with value array)
-        if (typeof ciphertext === 'object' && 'value' in ciphertext && Array.isArray((ciphertext as ctString).value)) {
-            return decryptString(ciphertext as ctString, this._userOnboardInfo.aesKey)
-        }
-
-        // Otherwise it's ctUint (bigint) - works for all uint sizes (8, 16, 32, 64, 128)
         if (typeof ciphertext === 'bigint') {
             return decryptUint(ciphertext, this._userOnboardInfo.aesKey)
         }
 
-        // If it's an array/tuple, try to extract the first element
-        if (Array.isArray(ciphertext) && ciphertext.length > 0) {
-            return this.decryptValue(ciphertext[0])
-        }
-
-        throw new Error(`Unknown ciphertext type: ${typeof ciphertext}, value: ${JSON.stringify(ciphertext)}`)
+        return decryptString(ciphertext, this._userOnboardInfo.aesKey)
     }
 
     enableAutoOnboard() {
