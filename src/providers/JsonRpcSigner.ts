@@ -1,10 +1,43 @@
-import {ctString, ctUint, decodeUint, decryptString, decryptUint, encodeKey, encodeUint, encrypt, itString, itUint} from "@coti-io/coti-sdk-typescript";
-import {JsonRpcSigner as BaseJsonRpcSigner, JsonRpcApiProvider, solidityPacked} from "ethers"
+import {
+    ctString,
+    ctUint,
+    ctUint256,
+    decodeUint,
+    decryptString,
+    decryptUint,
+    decryptUint256,
+    encodeKey,
+    encodeUint,
+    encrypt,
+    itString,
+    itUint,
+    itUint256
+} from "@coti-io/coti-sdk-typescript";
+import {JsonRpcSigner as BaseJsonRpcSigner, JsonRpcApiProvider, solidityPacked, solidityPackedKeccak256, getBytes} from "ethers"
 import {CotiNetwork, OnboardInfo, RsaKeyPair} from "../types";
 import {ONBOARD_CONTRACT_ADDRESS} from "../utils/constants";
 import {getAccountBalance, getDefaultProvider, onboard, recoverAesFromTx} from "../utils";
 
 const EIGHT_BYTES = 8
+const BLOCK_SIZE = 16 // AES block size in bytes
+const CT_SIZE = 32 // 256 bits = 32 bytes
+const MAX_PLAINTEXT_BIT_SIZE = 256
+
+// Helper function to write 128-bit bigint to buffer (big-endian)
+function writeBigUInt128BE(buf: Uint8Array, value: bigint) {
+    for (let i = 15; i >= 0; i--) {
+        buf[i] = Number(value & BigInt(0xff))
+        value >>= BigInt(8)
+    }
+}
+
+// Helper function to write 256-bit bigint to buffer (big-endian)
+function writeBigUInt256BE(buf: Uint8Array, value: bigint) {
+    for (let i = 31; i >= 0; i--) {
+        buf[i] = Number(value & BigInt(0xff))
+        value >>= BigInt(8)
+    }
+}
 
 export class JsonRpcSigner extends BaseJsonRpcSigner {
     private _autoOnboard: boolean = true;
@@ -15,16 +48,23 @@ export class JsonRpcSigner extends BaseJsonRpcSigner {
         this._userOnboardInfo = userOnboardInfo;
     }
 
-    async #buildInputText(
+    /**
+     * Builds input text (itUint) for values up to 128 bits
+     * Equivalent to prepareIT from SDK, but uses signMessage() for MetaMask compatibility
+     */
+    async #prepareIT(
         plaintext: bigint,
         userKey: string,
         contractAddress: string,
         functionSelector: string
     ): Promise<itUint> {
-        if (plaintext >= BigInt(2) ** BigInt(64)) {
-            throw new RangeError("Plaintext size must be 64 bits or smaller.")
+        const plaintextBigInt = BigInt(plaintext)
+        const bitSize = plaintextBigInt.toString(2).length
+        
+        if (bitSize > MAX_PLAINTEXT_BIT_SIZE / 2) { 
+            throw new RangeError("Plaintext size must be 128 bits or smaller. Use prepareIT256 for larger values.")
         }
-    
+
         // Convert the plaintext to bytes
         const plaintextBytes = encodeUint(plaintext)
     
@@ -38,9 +78,7 @@ export class JsonRpcSigner extends BaseJsonRpcSigner {
         // Convert the ciphertext to BigInt
         const ctInt = decodeUint(ct)
     
-        
-        let signature: Uint8Array | string
-        
+        // Build the message to sign (same format as SDK's signInputText)
         const message = solidityPacked(
             ["address", "address", "bytes4", "uint256"],
             [this.address, contractAddress, functionSelector, ctInt]
@@ -53,7 +91,8 @@ export class JsonRpcSigner extends BaseJsonRpcSigner {
             messageBytes[i / 2] = byte
         }
 
-        signature = await this.signMessage(messageBytes)
+        // Sign using signMessage() (MetaMask compatible)
+        const signature = await this.signMessage(messageBytes)
     
         return {
             ciphertext: ctInt,
@@ -61,6 +100,99 @@ export class JsonRpcSigner extends BaseJsonRpcSigner {
         }
     }
 
+    /**
+     * Builds input text (itUint256) for values up to 256 bits
+     * Equivalent to prepareIT256 from SDK, but uses signMessage() for MetaMask compatibility
+     */
+    async #prepareIT256(
+        plaintext: bigint,
+        userKey: string,
+        contractAddress: string,
+        functionSelector: string
+    ): Promise<itUint256> {
+        const plaintextBigInt = BigInt(plaintext)
+        const bitSize = plaintextBigInt.toString(2).length
+        
+        if (bitSize > MAX_PLAINTEXT_BIT_SIZE) {
+            throw new RangeError("Plaintext size must be 256 bits or smaller.")
+        }
+
+        const userAesKey = encodeKey(userKey)
+        const senderBytes = getBytes(this.address)
+        const contractBytes = getBytes(contractAddress)
+        const hashFuncBytes = getBytes(functionSelector)
+
+        let ct = new Uint8Array(0)
+
+        if (bitSize <= MAX_PLAINTEXT_BIT_SIZE / 2) {
+            // Value fits in 128 bits - encrypt low part, zero high part
+            const plaintextBytes = new Uint8Array(BLOCK_SIZE)
+            writeBigUInt128BE(plaintextBytes, plaintextBigInt)
+            const { ciphertext, r } = encrypt(userAesKey, plaintextBytes)
+
+            const zero = BigInt(0)
+            const zeroBytes = new Uint8Array(BLOCK_SIZE)
+            writeBigUInt128BE(zeroBytes, zero)
+            const { ciphertext: ciphertextHigh, r: rHigh } = encrypt(userAesKey, zeroBytes)
+
+            ct = new Uint8Array([...ciphertextHigh, ...rHigh, ...ciphertext, ...r])
+        } else {
+            // Value > 128 bits - encrypt both high and low parts
+            const plaintextBytes = new Uint8Array(CT_SIZE)
+            writeBigUInt256BE(plaintextBytes, plaintextBigInt)
+            const high = encrypt(userAesKey, plaintextBytes.slice(0, BLOCK_SIZE))
+            const low = encrypt(userAesKey, plaintextBytes.slice(BLOCK_SIZE))
+            ct = new Uint8Array([...high.ciphertext, ...high.r, ...low.ciphertext, ...low.r])
+        }
+
+        // Build the message to sign (same format as SDK's signIT)
+        const message = solidityPackedKeccak256(
+            ["bytes", "bytes", "bytes4", "bytes"],
+            [senderBytes, contractBytes, hashFuncBytes, ct]
+        )
+
+        const messageBytes = getBytes(message)
+
+        // Sign using signMessage() (MetaMask compatible)
+        const signature = await this.signMessage(messageBytes)
+
+        // Convert signature from string to Uint8Array if needed
+        let signatureBytes: Uint8Array
+        if (typeof signature === 'string') {
+            signatureBytes = getBytes(signature)
+        } else {
+            signatureBytes = signature
+        }
+
+        // Split ciphertext into high and low parts
+        const ciphertextHigh = ct.slice(0, CT_SIZE)
+        const ciphertextLow = ct.slice(CT_SIZE)
+
+        // Convert Uint8Array to hex string then to BigInt
+        const ciphertextHighHex = Array.from(ciphertextHigh)
+            .map(byte => byte.toString(16).padStart(2, '0'))
+            .join('')
+        const ciphertextLowHex = Array.from(ciphertextLow)
+            .map(byte => byte.toString(16).padStart(2, '0'))
+            .join('')
+
+        const ciphertextHighUint = BigInt('0x' + ciphertextHighHex)
+        const ciphertextLowUint = BigInt('0x' + ciphertextLowHex)
+
+        return { 
+            ciphertext: { 
+                ciphertextHigh: ciphertextHighUint, 
+                ciphertextLow: ciphertextLowUint 
+            }, 
+            signature: signatureBytes
+        }
+    }
+
+    /**
+     * Builds input text (itString) for string values
+     * IMPORTANT: Strings are chunked in 8-byte (64-bit) increments to ensure compatibility
+     * with contracts that expect ctUint64. Each chunk is guaranteed to be ≤ 64 bits.
+     */
     async #buildStringInputText(
         plaintext: string,
         userKey: string,
@@ -77,16 +209,27 @@ export class JsonRpcSigner extends BaseJsonRpcSigner {
             signature: new Array<Uint8Array | string>()
         }
 
-        // Process the encoded string in chunks of 8 bytes
-        // We use 8 bytes since we will use ctUint64 to store
-        // each chunk of 8 characters
+        // Process the encoded string in chunks of 8 bytes (64 bits)
+        // CRITICAL: We use exactly 8 bytes to ensure each chunk is ≤ 64 bits
+        // This is required for contract compatibility (ctUint64)
+        // Even though #prepareIT supports up to 128 bits, we limit strings to 64 bits
         for (let startIdx = 0; startIdx < encodedStr.length; startIdx += EIGHT_BYTES) {
             const endIdx = Math.min(startIdx + EIGHT_BYTES, encodedStr.length)
 
-            const byteArr = new Uint8Array([...encodedStr.slice(startIdx, endIdx), ...new Uint8Array(EIGHT_BYTES - (endIdx - startIdx))]) // pad the end of the string with zeros if needed
+            // Create 8-byte chunk (padded with zeros if needed)
+            const byteArr = new Uint8Array([...encodedStr.slice(startIdx, endIdx), ...new Uint8Array(EIGHT_BYTES - (endIdx - startIdx))])
+            
+            // Convert 8 bytes to bigint (will be ≤ 64 bits = 2^64 - 1)
+            const chunkValue = decodeUint(byteArr)
+            
+            // Verify chunk is ≤ 64 bits (safety check)
+            if (chunkValue >= BigInt(2) ** BigInt(64)) {
+                throw new Error("String chunk exceeded 64 bits - this should never happen with 8-byte chunks")
+            }
 
-            const it = await this.#buildInputText(
-                decodeUint(byteArr), // convert the 8-byte hex string into a number
+            // Use prepareIT (supports up to 128 bits, but our chunk is guaranteed ≤ 64 bits)
+            const it = await this.#prepareIT(
+                chunkValue,
                 userKey,
                 contractAddress,
                 functionSelector
@@ -146,45 +289,97 @@ export class JsonRpcSigner extends BaseJsonRpcSigner {
         this._userOnboardInfo = undefined
     }
 
-    async encryptValue(plaintextValue: bigint | number | string, contractAddress: string, functionSelector: string): Promise<itUint | itString> {
+    /**
+     * Ensures AES key is available, handles onboarding if needed
+     */
+    private async _ensureAesKey(): Promise<void> {
         if (this._userOnboardInfo?.aesKey === null || this._userOnboardInfo?.aesKey === undefined) {
             if (this._autoOnboard) {
                 console.warn("user AES key is not defined and need to onboard or recovered.")
                 await this.generateOrRecoverAes()
                 if (!this._userOnboardInfo || this._userOnboardInfo.aesKey === undefined || this._userOnboardInfo.aesKey === null) {
                     throw new Error("user AES key is not defined and cannot be onboarded or recovered.")
-
                 }
-            } else
-                throw new Error("user AES key is not defined and auto onboard is off .")
-
+            } else {
+                throw new Error("user AES key is not defined and auto onboard is off.")
+            }
         }
+    }
 
+    /**
+     * Encrypts values up to 128 bits (uses #prepareIT)
+     */
+    async encryptValue(
+        plaintextValue: bigint | number | string, 
+        contractAddress: string, 
+        functionSelector: string
+    ): Promise<itUint | itString> {
+        await this._ensureAesKey();
+        
         const value = typeof plaintextValue === 'number' ? BigInt(plaintextValue) : plaintextValue
 
-        let result;
-
         if (typeof value === 'bigint') {
-            result = await this.#buildInputText(
+            const bitSize = value.toString(2).length
+            
+            if (bitSize > 128) {
+                throw new Error("encryptValue: values larger than 128 bits are not supported");
+            }
+            
+            return await this.#prepareIT(
                 value,
-                this._userOnboardInfo.aesKey,
+                this._userOnboardInfo!.aesKey!,
                 contractAddress,
                 functionSelector
             );
         } else if (typeof value === 'string') {
-            result = await this.#buildStringInputText(
+            return await this.#buildStringInputText(
                 value,
-                this._userOnboardInfo.aesKey,
+                this._userOnboardInfo!.aesKey!,
                 contractAddress,
                 functionSelector
             );
         } else {
             throw new Error("Unknown type");
         }
-
-        return result;
     }
 
+    /**
+     * Encrypts values up to 256 bits (uses #prepareIT256)
+     */
+    async encryptValue256(
+        plaintextValue: bigint | number,
+        contractAddress: string,
+        functionSelector: string
+    ): Promise<itUint256> {
+        await this._ensureAesKey();
+        
+        const value = typeof plaintextValue === 'number' ? BigInt(plaintextValue) : plaintextValue;
+        const bitSize = value.toString(2).length;
+        
+        if (bitSize > 256) {
+            throw new Error("encryptValue256: values larger than 256 bits are not supported");
+        }
+        
+        return await this.#prepareIT256(
+            value,
+            this._userOnboardInfo!.aesKey!,
+            contractAddress,
+            functionSelector
+        );
+    }
+
+    /**
+     * Decrypts ctUint256 ciphertexts (uses decryptUint256)
+     * Only accepts ciphertexts matching ctUint256 type
+     */
+    async decryptValue256(ciphertext: ctUint256): Promise<bigint> {
+        await this._ensureAesKey();
+        return decryptUint256(ciphertext, this._userOnboardInfo!.aesKey!);
+    }
+
+    /**
+     * Decrypts ctUint and ctString ciphertexts
+     */
     async decryptValue(ciphertext: ctUint | ctString): Promise<bigint | string> {
         if (this._userOnboardInfo?.aesKey === null || this._userOnboardInfo?.aesKey === undefined) {
             if (this._autoOnboard) {
@@ -192,10 +387,10 @@ export class JsonRpcSigner extends BaseJsonRpcSigner {
                 await this.generateOrRecoverAes()
                 if (!this._userOnboardInfo || this._userOnboardInfo.aesKey === undefined || this._userOnboardInfo.aesKey === null) {
                     throw new Error("user AES key is not defined and cannot be onboarded or recovered.")
-
                 }
-            } else
-                throw new Error("user AES key is not defined and auto onboard is off .")
+            } else {
+                throw new Error("user AES key is not defined and auto onboard is off.")
+            }
         }
 
         if (typeof ciphertext === 'bigint') {
