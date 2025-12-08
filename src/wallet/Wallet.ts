@@ -1,16 +1,14 @@
 import {Provider, SigningKey, Wallet as BaseWallet} from "ethers";
-import {CotiNetwork, OnboardInfo, RsaKeyPair} from "../types";
+import {CotiNetwork, OnboardInfo, RsaKeyPair, ctUint256, itUint256} from "../types";
 import {
     buildStringInputText,
     ctString,
     ctUint,
-    ctUint256,
     decryptString,
     decryptUint,
     decryptUint256,
     itString,
     itUint,
-    itUint256,
     prepareIT,
     prepareIT256
 } from "@coti-io/coti-sdk-typescript";
@@ -66,6 +64,7 @@ export class Wallet extends BaseWallet {
         } else this._userOnboardInfo = {rsaKey: rsa}
     }
 
+
     /**
      * Ensures AES key is available, handles onboarding if needed
      */
@@ -112,10 +111,15 @@ export class Wallet extends BaseWallet {
                 functionSelector
             );
         } else if (typeof value === 'string') {
-            return buildStringInputText(value, {
-                wallet: this as any,
-                userKey: this._userOnboardInfo!.aesKey!
-            }, contractAddress, functionSelector);
+            return buildStringInputText(
+                value,
+                {
+                    wallet: this as any,
+                    userKey: this._userOnboardInfo!.aesKey!
+                },
+                contractAddress,
+                functionSelector
+            );
         } else {
             throw new Error("Unknown type");
         }

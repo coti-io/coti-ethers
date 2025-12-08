@@ -369,7 +369,7 @@ export class JsonRpcSigner extends BaseJsonRpcSigner {
     }
 
     /**
-     * Decrypts ctUint256 ciphertexts (uses decryptUint256)
+     * Decrypts ctUint256 ciphertexts (uses decryptUint256 from SDK)
      * Only accepts ciphertexts matching ctUint256 type
      */
     async decryptValue256(ciphertext: ctUint256): Promise<bigint> {

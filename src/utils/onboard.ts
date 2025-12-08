@@ -23,14 +23,21 @@ export async function onboard(defaultOnboardContractAddress: string, signer: Wal
             signedEK = await signer.signMessage(publicKey)
         }
 
-        const receipt = await (await accountOnboardContract.onboardAccount(publicKey, signedEK, {gasLimit: 12000000})).wait()
+        const tx = await accountOnboardContract.onboardAccount(publicKey, signedEK, {gasLimit: 12000000})
+        const receipt = await tx.wait()
 
-        if (!receipt || !receipt.logs || !receipt.logs[0]) {
-            throw new Error("failed to onboard account")
+        if (!receipt) {
+            throw new Error("failed to onboard account: transaction receipt is null")
+        }
+        if (!receipt.logs || receipt.logs.length === 0) {
+            throw new Error(`failed to onboard account: no logs in receipt. Status: ${receipt.status}, Hash: ${receipt.hash}`)
+        }
+        if (!receipt.logs[0]) {
+            throw new Error("failed to onboard account: first log is missing")
         }
         const decodedLog = accountOnboardContract.interface.parseLog(receipt.logs[0])
         if (!decodedLog) {
-            throw new Error("failed to onboard account")
+            throw new Error(`failed to onboard account: could not parse log. Log data: ${JSON.stringify(receipt.logs[0])}`)
         }
 
         const userKey1 = decodedLog.args.userKey1.substring(2);
@@ -42,8 +49,9 @@ export async function onboard(defaultOnboardContractAddress: string, signer: Wal
             txHash: receipt.hash
         }
     } catch (e) {
-        console.error("unable to onboard user.")
-        throw Error(`unable to onboard user.`)
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        console.error("unable to onboard user.", errorMessage);
+        throw Error(`unable to onboard user: ${errorMessage}`)
     }
 
 }
@@ -67,8 +75,9 @@ export async function recoverAesFromTx(txHash: string,
         const encryptedKey = decodedLog.args.userKey
         return decryptRSA(rsaKey.privateKey, encryptedKey.substring(2))
     } catch (e) {
-        console.error("failed to get onboard tx info")
-        throw Error(`unable to recover aes key from transaction.`)
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        console.error("failed to get onboard tx info", errorMessage);
+        throw Error(`unable to recover aes key from transaction: ${errorMessage}`)
     }
 
 }
