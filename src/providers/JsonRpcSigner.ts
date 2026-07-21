@@ -1,14 +1,17 @@
 import {
+    ctInt256,
     ctString,
     ctUint,
     ctUint256,
     decodeUint,
+    decryptInt256,
     decryptString,
     decryptUint,
     decryptUint256,
     encodeKey,
     encodeUint,
     encrypt,
+    itInt256,
     itString,
     itUint,
     itUint256
@@ -186,6 +189,32 @@ export class JsonRpcSigner extends BaseJsonRpcSigner {
             }, 
             signature: signatureBytes
         }
+    }
+
+    /**
+     * Builds input text (itInt256) for signed 256-bit values.
+     * Two's-complement encodes then delegates to {@link #prepareIT256}.
+     */
+    async #prepareSignedIT256(
+        plaintext: bigint,
+        userKey: string,
+        contractAddress: string,
+        functionSelector: string
+    ): Promise<itInt256> {
+        const value = BigInt(plaintext)
+        const min = -(1n << 255n)
+        const max = (1n << 255n) - 1n
+        if (value < min || value > max) {
+            throw new RangeError("Plaintext size must fit in int256.")
+        }
+
+        const unsigned = value < 0n ? (1n << 256n) + value : value
+        return await this.#prepareIT256(
+            unsigned,
+            userKey,
+            contractAddress,
+            functionSelector
+        )
     }
 
     /**
@@ -375,6 +404,34 @@ export class JsonRpcSigner extends BaseJsonRpcSigner {
     async decryptValue256(ciphertext: ctUint256): Promise<bigint> {
         await this._ensureAesKey();
         return decryptUint256(ciphertext, this._userOnboardInfo!.aesKey!);
+    }
+
+    /**
+     * Encrypts a signed int256 (uses #prepareSignedIT256).
+     */
+    async encryptValueSigned256(
+        plaintextValue: bigint | number,
+        contractAddress: string,
+        functionSelector: string
+    ): Promise<itInt256> {
+        await this._ensureAesKey();
+
+        const value = typeof plaintextValue === 'number' ? BigInt(plaintextValue) : plaintextValue;
+
+        return await this.#prepareSignedIT256(
+            value,
+            this._userOnboardInfo!.aesKey!,
+            contractAddress,
+            functionSelector
+        );
+    }
+
+    /**
+     * Decrypts ctInt256 ciphertexts (uses decryptInt256).
+     */
+    async decryptValueSigned256(ciphertext: ctInt256): Promise<bigint> {
+        await this._ensureAesKey();
+        return decryptInt256(ciphertext, this._userOnboardInfo!.aesKey!);
     }
 
     /**
