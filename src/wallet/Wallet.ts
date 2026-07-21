@@ -2,17 +2,21 @@ import {Provider, SigningKey, Wallet as BaseWallet} from "ethers";
 import {CotiNetwork, OnboardInfo, RsaKeyPair} from "../types";
 import {
     buildStringInputText,
+    ctInt256,
     ctString,
     ctUint,
     ctUint256,
+    decryptInt256,
     decryptString,
     decryptUint,
     decryptUint256,
+    itInt256,
     itString,
     itUint,
     itUint256,
     prepareIT,
-    prepareIT256
+    prepareIT256,
+    prepareSignedIT256
 } from "@coti-io/coti-sdk-typescript";
 import {getAccountBalance, getDefaultProvider, onboard, recoverAesFromTx} from "../utils";
 import {ONBOARD_CONTRACT_ADDRESS} from "../utils/constants";
@@ -154,6 +158,37 @@ export class Wallet extends BaseWallet {
     async decryptValue256(ciphertext: ctUint256): Promise<bigint> {
         await this._ensureAesKey();
         return decryptUint256(ciphertext, this._userOnboardInfo!.aesKey!);
+    }
+
+    /**
+     * Encrypts a signed int256 (uses prepareSignedIT256).
+     */
+    async encryptValueSigned256(
+        plaintextValue: bigint | number,
+        contractAddress: string,
+        functionSelector: string
+    ): Promise<itInt256> {
+        await this._ensureAesKey();
+
+        const value = typeof plaintextValue === 'number' ? BigInt(plaintextValue) : plaintextValue;
+
+        return prepareSignedIT256(
+            value,
+            {
+                wallet: this as any,
+                userKey: this._userOnboardInfo!.aesKey!
+            },
+            contractAddress,
+            functionSelector
+        );
+    }
+
+    /**
+     * Decrypts ctInt256 ciphertexts (uses decryptInt256).
+     */
+    async decryptValueSigned256(ciphertext: ctInt256): Promise<bigint> {
+        await this._ensureAesKey();
+        return decryptInt256(ciphertext, this._userOnboardInfo!.aesKey!);
     }
 
     /**
