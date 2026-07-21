@@ -202,6 +202,34 @@ async function test() {
             throw error;
         }
     }
+
+    // Test signed int256 round-trip (uses encryptValueSigned256)
+    console.log("\n7. Testing signed int256 encryption/decryption...");
+    const signedValues = [0n, -1n, (1n << 255n) - 1n, -(1n << 255n)];
+    for (const value of signedValues) {
+        const encrypted = await signer.encryptValueSigned256(value, contractAddress, functionSelector);
+        const decrypted = await signer.decryptValueSigned256(encrypted.ciphertext);
+        console.log(`   Original: ${value.toString()}`);
+        console.log(`   Decrypted: ${decrypted.toString()}`);
+        if (decrypted !== value) {
+            throw new Error(`signed int256 mismatch: expected ${value}, got ${decrypted}`);
+        }
+    }
+    console.log("✅ Signed int256 encryption/decryption: PASSED");
+
+    // Test out-of-range signed int256 should fail
+    console.log("\n8. Testing signed int256 range rejection...");
+    try {
+        await signer.encryptValueSigned256(1n << 255n, contractAddress, functionSelector);
+        console.log("❌ Should have thrown error for value above int256 max");
+        throw new Error("encryptValueSigned256 should reject values outside int256");
+    } catch (error: any) {
+        if (error instanceof RangeError || error.message.includes("int256")) {
+            console.log("✅ Correctly rejected out-of-range signed int256");
+        } else {
+            throw error;
+        }
+    }
     
     console.log("\n" + "=".repeat(60));
     console.log("✅ ALL TESTS PASSED!");

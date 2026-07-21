@@ -1,6 +1,6 @@
 import { Contract, ContractRunner, keccak256, Provider } from "ethers"
 import { getDefaultProvider } from "./network"
-import { decryptRSA, generateRSAKeyPair, recoverUserKey, sign } from "@coti-io/coti-sdk-typescript"
+import { generateRSAKeyPair, recoverUserKey, sign } from "@coti-io/coti-sdk-typescript"
 import { CotiNetwork, RsaKeyPair } from "../types"
 import { ONBOARD_CONTRACT_ABI } from "./constants"
 import { Wallet } from "../wallet/Wallet"
@@ -64,8 +64,12 @@ export async function recoverAesFromTx(txHash: string,
 
         const accountOnboardContract: any = getAccountOnboardContract(defaultOnboardContractAddress)
         const decodedLog = accountOnboardContract.interface.parseLog(receipt.logs[0])
-        const encryptedKey = decodedLog.args.userKey
-        return decryptRSA(rsaKey.privateKey, encryptedKey.substring(2))
+        if (!decodedLog) {
+            throw new Error("failed to get onboard tx info")
+        }
+        const userKey1 = decodedLog.args.userKey1.substring(2)
+        const userKey2 = decodedLog.args.userKey2.substring(2)
+        return recoverUserKey(rsaKey.privateKey, userKey1, userKey2)
     } catch (e) {
         console.error("failed to get onboard tx info")
         throw Error(`unable to recover aes key from transaction.`)
