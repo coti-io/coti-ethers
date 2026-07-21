@@ -113,6 +113,62 @@ describe("Wallet tests", function () {
         wallet.clearUserOnboardInfo()
         expect(wallet.getUserOnboardInfo()).to.be.undefined
     })
+
+    it('Should successfully encrypt and decrypt signed int256', async function () {
+        const wallet = new Wallet(Wallet.createRandom().privateKey);
+        wallet.disableAutoOnboard();
+        wallet.setAesKey(process.env.AES_KEY || "e0262555000f88878acc5b38146fbd05");
+        const contractAddress = "0x0000000000000000000000000000000000000001";
+        const functionSelector = "0x11223344";
+        const values = [0n, -1n, 42n, -42n, (1n << 255n) - 1n, -(1n << 255n)];
+
+        for (const value of values) {
+            const { ciphertext, signature } = await wallet.encryptValueSigned256(
+                value,
+                contractAddress,
+                functionSelector
+            );
+            expect(signature).to.be.instanceOf(Uint8Array);
+            expect(await wallet.decryptValueSigned256(ciphertext)).to.equal(value);
+        }
+    })
+
+    it('Should decrypt signed int256 using uint256 two\'s-complement wire format', async function () {
+        const wallet = new Wallet(Wallet.createRandom().privateKey);
+        wallet.disableAutoOnboard();
+        wallet.setAesKey(process.env.AES_KEY || "e0262555000f88878acc5b38146fbd05");
+        const contractAddress = "0x0000000000000000000000000000000000000001";
+        const functionSelector = "0x11223344";
+
+        const { ciphertext } = await wallet.encryptValueSigned256(-1n, contractAddress, functionSelector);
+        expect(await wallet.decryptValue256(ciphertext)).to.equal((1n << 256n) - 1n);
+    })
+
+    it('Should reject signed int256 outside int256 range', async function () {
+        const wallet = new Wallet(Wallet.createRandom().privateKey);
+        wallet.disableAutoOnboard();
+        wallet.setAesKey(process.env.AES_KEY || "e0262555000f88878acc5b38146fbd05");
+        const contractAddress = "0x0000000000000000000000000000000000000001";
+        const functionSelector = "0x11223344";
+
+        let errorThrown = false;
+        try {
+            await wallet.encryptValueSigned256((1n << 255n), contractAddress, functionSelector);
+        } catch (error) {
+            errorThrown = true;
+            expect(error).to.be.instanceOf(RangeError);
+        }
+        expect(errorThrown).to.be.true;
+
+        errorThrown = false;
+        try {
+            await wallet.encryptValueSigned256(-(1n << 255n) - 1n, contractAddress, functionSelector);
+        } catch (error) {
+            errorThrown = true;
+            expect(error).to.be.instanceOf(RangeError);
+        }
+        expect(errorThrown).to.be.true;
+    })
 })
 
 function parseRsaKey(key: string | undefined): Uint8Array {
